@@ -25,7 +25,7 @@
 
 ### 1. Clonar Repositorio
 ```bash
-git clone https://github.com/Cris904fl/gestorinvetarios.git
+git clone https://github.com/Cris904fl/gestorinventarios.git
 cd gestorinvetarios
 ```
 
