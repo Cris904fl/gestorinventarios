@@ -1,5 +1,8 @@
+using Blazored.Toast;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
+using SistemaVentaBlazor.Client.Servicios.Contrato;
+using SistemaVentaBlazor.Client.Servicios.Implementacion;
 using SistemaVentaBlazor.Server.Models;
 using SistemaVentaBlazor.Server.Repositorio.Contrato;
 using SistemaVentaBlazor.Server.Repositorio.Implementacion;
@@ -24,6 +27,8 @@ builder.Services.AddScoped<ICategoriaRepositorio, CategoriaRepositorio>();
 builder.Services.AddScoped<IProductoRepositorio, ProductoRepositorio>();
 builder.Services.AddScoped<IVentaRepositorio, VentaRepositorio>();
 builder.Services.AddScoped<IDashBoardRepositorio, DashBoardRepositorio>();
+builder.Services.AddBlazoredToast();
+
 
 var app = builder.Build();
 

@@ -72,5 +72,42 @@ namespace SistemaVentaBlazor.Server.Repositorio.Implementacion
                 throw;
             }
         }
+
+        public async Task<bool> AgregarProductosMasivo(List<Producto> productos)
+        {
+            try
+            {
+                await _dbContext.Productos.AddRangeAsync(productos);
+                await _dbContext.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> ActualizarStock(int idProducto, int cantidad)
+        {
+            try
+            {
+                var producto = await _dbContext.Productos.FindAsync(idProducto);
+                if (producto == null)
+                {
+                    return false; // No se encontró el producto
+                }
+
+                producto.Stock += cantidad; // Actualizar stock
+                _dbContext.Update(producto);
+                await _dbContext.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+
     }
 }

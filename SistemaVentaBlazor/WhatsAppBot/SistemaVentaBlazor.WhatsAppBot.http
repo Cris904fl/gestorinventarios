@@ -1,0 +1,6 @@
+@SistemaVentaBlazor.WhatsAppBot_HostAddress = http://localhost:5242
+
+GET {{SistemaVentaBlazor.WhatsAppBot_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

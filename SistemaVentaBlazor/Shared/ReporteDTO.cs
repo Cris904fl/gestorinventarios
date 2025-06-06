@@ -16,5 +16,6 @@ namespace SistemaVentaBlazor.Shared
         public int? Cantidad { get; set; }
         public string? Precio { get; set; }
         public string? Total { get; set; }
+        public string StockDisponible { get; set; } // Agregar esta propiedad
     }
 }

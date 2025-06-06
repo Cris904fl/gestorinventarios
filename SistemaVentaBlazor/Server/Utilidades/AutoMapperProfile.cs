@@ -134,7 +134,15 @@ namespace SistemaVentaBlazor.Server.Utilidades
                 .ForMember(destino =>
                     destino.Total,
                     opt => opt.MapFrom(origen => Convert.ToString(origen.Total.Value, new CultureInfo("es-PE")))
+                )
+               .ForMember(destino => destino.StockDisponible, // Nuevo campo en ReporteDTO
+                    opt => opt.MapFrom(origen =>
+                        origen.IdProductoNavigation.Stock.HasValue
+                            ? Convert.ToString(origen.IdProductoNavigation.Stock.Value)
+                            : "N/A"
+                    )
                 );
+
             #endregion Reporte
         }
     }

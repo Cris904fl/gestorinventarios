@@ -1,25 +1,32 @@
 ﻿@page "/page/producto"
-@inject IProductoService _productoServicio
+
 @inject IDialogService _dialogServicio
 @inject ISnackbar _snackBar
-@inject SweetAlertService Swal;
+@inject IProductoService _productoServicio
+
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-5">
-
     <MudText Typo="Typo.h5" GutterBottom="true">Productos</MudText>
 
     <MudPaper Elevation="3" Class="pa-4" Width="100%">
         <MudGrid>
-            <MudItem xs="12">
+            <MudItem xs="12" Class="d-flex gap-3">
                 <MudButton Variant="Variant.Filled"
                            StartIcon="@Icons.Material.Filled.Add"
                            Color="Color.Primary"
                            OnClick="AbrirNuevoProducto">
                     Nuevo Producto
                 </MudButton>
-            </MudItem>
-            <MudItem xs="12">
 
+                <MudButton Variant="Variant.Filled"
+                           StartIcon="@Icons.Material.Filled.UploadFile"
+                           Color="Color.Secondary"
+                           OnClick="AbrirModalCargaMasiva">
+                    Carga Masiva de Productos
+                </MudButton>
+            </MudItem>
+
+            <MudItem xs="12">
                 <MudTable Items="@listaProductos"
                           Striped="true" Bordered="true" Dense="true"
                           Filter="new Func<ProductoDTO,bool>(FilterFunc1)" @bind-SelectedItem="selectedItem1"
@@ -37,8 +44,8 @@
                     </HeaderContent>
                     <RowTemplate Context="productoRow">
                         <MudTd DataLabel="Nombre">@productoRow.Nombre</MudTd>
-                        <MudTd DataLabel="Correo">@productoRow.DescripcionCategoria</MudTd>
-                        <MudTd DataLabel="Rol">@productoRow.Stock</MudTd>
+                        <MudTd DataLabel="Categoria">@productoRow.DescripcionCategoria</MudTd>
+                        <MudTd DataLabel="Stock">@productoRow.Stock</MudTd>
                         <MudTd DataLabel="Precio">@productoRow.Precio</MudTd>
                         <MudTd DataLabel="">
                             <MudFab Color="Color.Primary"
@@ -50,23 +57,20 @@
                                     StartIcon="@Icons.Material.Filled.Delete"
                                     Size="Size.Small"
                                     IconSize="Size.Small"
-                                    OnClick="@(() => EliminarUsuario(productoRow))" />
+                                    OnClick="@(() => EliminarProducto(productoRow))" />
                         </MudTd>
                     </RowTemplate>
                     <PagerContent>
                         <MudTablePager />
                     </PagerContent>
                 </MudTable>
-
-
             </MudItem>
         </MudGrid>
     </MudPaper>
-
 </MudContainer>
 
 @code {
-    List<ProductoDTO> listaProductos = new List<ProductoDTO>();
+    private List<ProductoDTO> listaProductos = new();
     private string searchString1 = "";
     private ProductoDTO selectedItem1 = null;
     private bool _loading = true;
@@ -74,18 +78,16 @@
     private async Task ObtenerProductos()
     {
         var result = await _productoServicio.Lista();
-
         if (result.status)
         {
             listaProductos = (List<ProductoDTO>)result.value!;
         }
+        _loading = false;
     }
-
 
     protected override async Task OnInitializedAsync()
     {
         await ObtenerProductos();
-        _loading = false;
     }
 
     private bool FilterFunc1(ProductoDTO element) => FilterFunc(element, searchString1);
@@ -94,15 +96,8 @@
     {
         if (string.IsNullOrWhiteSpace(searchString))
             return true;
-        if (element.Nombre.Contains(searchString, StringComparison.OrdinalIgnoreCase))
-            return true;
-        if (element.DescripcionCategoria.Contains(searchString, StringComparison.OrdinalIgnoreCase))
-            return true;
-     
-        if ($"{element.Nombre} {element.DescripcionCategoria}".Contains(searchString))
-            return true;
-
-        return false;
+        return element.Nombre.Contains(searchString, StringComparison.OrdinalIgnoreCase)
+            || element.DescripcionCategoria.Contains(searchString, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task AbrirNuevoProducto()
@@ -119,7 +114,6 @@
     private async Task AbrirEditarProducto(ProductoDTO model)
     {
         var parametros = new DialogParameters { ["_producto"] = model };
-
         var dialogo = _dialogServicio.Show<MdProducto>("Editar Producto", parametros);
         var resultado = await dialogo.Result;
 
@@ -129,30 +123,44 @@
         }
     }
 
-    private async Task EliminarUsuario(ProductoDTO model)
+    private async Task EliminarProducto(ProductoDTO model)
     {
-        SweetAlertResult result = await Swal.FireAsync(new SweetAlertOptions
-            {
-                Title = "Esta seguro?",
-                Text = $"Eliminar producto: {model.Nombre}",
-                Icon = SweetAlertIcon.Warning,
-                ShowCancelButton = true,
-                ConfirmButtonText = "Si, eliminar",
-                CancelButtonText = "No, volver"
-            });
-
-        if (result.IsConfirmed)
+        bool confirmar = await ConfirmarEliminacion(model.Nombre);
+        if (confirmar)
         {
             var resultado = await _productoServicio.Eliminar(model.IdProducto);
-
             if (resultado)
             {
-                _snackBar.Add("El producto fue eliminado", Severity.Success, a => a.VisibleStateDuration = 500);
+                _snackBar.Add("El producto fue eliminado", Severity.Success);
                 await ObtenerProductos();
             }
             else
-                _snackBar.Add("No se pudo eliminar", Severity.Error, a => a.VisibleStateDuration = 500);
+            {
+                _snackBar.Add("No se pudo eliminar", Severity.Error);
+            }
         }
     }
 
+    private async Task<bool> ConfirmarEliminacion(string nombre)
+    {
+        var result = await _dialogServicio.ShowMessageBox(
+            "¿Está seguro?",
+            $"Eliminar producto: {nombre}",
+            yesText: "Sí, eliminar",
+            noText: "No, volver"
+        );
+        return result == true;
+    }
+
+    private async Task AbrirModalCargaMasiva()
+    {
+        var dialogo = _dialogServicio.Show<MdCargaMasiva>("Carga Masiva de Productos");
+        var resultado = await dialogo.Result;
+
+        if (!resultado.Canceled)
+        {
+            await ObtenerProductos(); // Actualiza la lista de productos después de cargar el archivo
+        }
+    }
 }
+

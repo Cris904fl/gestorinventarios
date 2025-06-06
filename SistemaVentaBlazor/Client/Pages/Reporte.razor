@@ -1,10 +1,13 @@
 ﻿@page "/page/reporte"
+
+
 @using ClosedXML.Excel;
 @inject IJSRuntime _jsServicio;
 @inject IVentaService _ventaServicio;
 @inject IDialogService _dialogServicio
 @inject ISnackbar _snackBar
 @inject SweetAlertService Swal;
+
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-5">
 
@@ -55,6 +58,7 @@
                         <MudTh>Cantidad</MudTh>
                         <MudTh>Precio</MudTh>
                         <MudTh>Total por Producto</MudTh>
+                        <MudTh>Stock Disponible</MudTh>
                     </HeaderContent>
                     <RowTemplate Context="ventaRow">
                         <MudTd DataLabel="Fecha Registro">@ventaRow.FechaRegistro</MudTd>
@@ -65,6 +69,7 @@
                         <MudTd DataLabel="Cantidad">@ventaRow.Cantidad</MudTd>
                         <MudTd DataLabel="Precio">@ventaRow.Precio</MudTd>
                         <MudTd DataLabel="Total por Producto">@ventaRow.Total</MudTd>
+                        <MudTd DataLabel="Stock Disponible">@ventaRow.StockDisponible</MudTd>
                     </RowTemplate>
                     <PagerContent>
                         <MudTablePager />
@@ -128,7 +133,8 @@
                 hoja.Cell(1, 6).Value = "Cantidad";
                 hoja.Cell(1, 7).Value = "Precio";
                 hoja.Cell(1, 8).Value = "Total por Producto";
- 
+                hoja.Cell(1, 9).Value = "Stock Disponible";
+
                 hoja.Cell(2, 1).InsertData(listaVentas);
 
                 using (var memoria = new MemoryStream())

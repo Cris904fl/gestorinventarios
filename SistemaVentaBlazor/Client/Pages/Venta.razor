@@ -2,7 +2,7 @@
 
 @inject IProductoService _productoServicio;
 @inject IVentaService _ventaServicio;
-@inject ISnackbar _snackBar
+@inject ISnackbar _snackBar;
 @inject SweetAlertService Swal;
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-5">
@@ -12,26 +12,22 @@
     <MudPaper Elevation="3" Class="pa-4" Width="100%">
         <MudGrid>
             <MudItem xs="6">
-
                 <MudAutocomplete T="ProductoDTO" Label="Buscar producto" @bind-Value="_productoSeleccionado" SearchFunc="@BuscarProducto"
                                  ResetValueOnEmptyText="true"
                                  AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Primary"
-                                 Variant="Variant.Outlined" Margin="Margin.Dense" 
-                                 ToStringFunc="@(e => e == null ? null : $"{e.Nombre} - {e.DescripcionCategoria}")"
-                                 />
+                                 Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 ToStringFunc="@(e => e == null ? null : $"{e.Nombre} - {e.DescripcionCategoria} (Stock: {e.Stock})")" />
             </MudItem>
             <MudItem xs="3">
                 <MudNumericField @bind-Value="_cantidad" Label="Cantidad" Variant="Variant.Outlined" Step="1" Margin="Margin.Dense" />
             </MudItem>
             <MudItem xs="3">
-                <MudButton 
-                    Variant="Variant.Filled" 
-                    StartIcon="@Icons.Material.Filled.Add" 
-                    Color="Color.Info"
-                    FullWidth="true"
-                    Class="mt-1"
-                    OnClick="AgregarProducto"
-                >Agregar</MudButton>
+                <MudButton Variant="Variant.Filled"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           Color="Color.Info"
+                           FullWidth="true"
+                           Class="mt-1"
+                           OnClick="AgregarProducto">Agregar</MudButton>
             </MudItem>
 
             <MudItem xs="6">
@@ -40,6 +36,7 @@
                 <MudSelect T="string" Label="Tipo de Pago" Variant="Variant.Outlined" @bind-Value="_venta.TipoPago" Margin="Margin.Dense">
                     <MudSelectItem Value="@("Efectivo")" />
                     <MudSelectItem Value="@("Tarjeta")" />
+                    <MudSelectItem Value="@("Crédito")" />
                 </MudSelect>
             </MudItem>
 
@@ -47,11 +44,18 @@
                 <MudAlert Severity="Severity.Warning" NoIcon="true" Variant="Variant.Filled"
                           ContentAlignment="HorizontalAlignment.Center" Dense="true" Class="mt-1">
                     Total @_venta.TotalTexto
-                    </MudAlert>
+                </MudAlert>
             </MudItem>
 
-            <MudItem xs="12">
+            @if (_venta.TipoPago == "Crédito")
+            {
+                <MudItem xs="12">
+                    <MudTextField T="string" Label="Nombre del Deudor" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  Style="width: 100%; font-size: 1.2rem;" />
+                </MudItem>
+            }
 
+            <MudItem xs="12">
                 <MudTable Items="@_venta.DetalleVenta" Dense="true" Striped="true" Bordered="true">
                     <HeaderContent>
                         <MudTh>Producto</MudTh>
@@ -74,7 +78,6 @@
                         </MudTd>
                     </RowTemplate>
                 </MudTable>
-
             </MudItem>
 
             <MudItem xs="3" Class="align-self-end">
@@ -84,7 +87,7 @@
                            FullWidth="true"
                            Class="mt-1"
                            OnClick="RegistrarVenta"
-                           Disabled="@botonDesactivado">Registrar</MudButton>
+                           Disabled="@(_venta.DetalleVenta.Count == 0 || botonDesactivado)">Registrar</MudButton>
             </MudItem>
 
         </MudGrid>
@@ -94,16 +97,16 @@
 
 @code {
     private int _cantidad = 0;
-    VentaDTO _venta = new VentaDTO() 
-    { 
-        TipoPago = "Efectivo" ,
-        DetalleVenta = new List<DetalleVentaDTO>()
-    };
+    VentaDTO _venta = new VentaDTO()
+        {
+            TipoPago = "Efectivo",
+            DetalleVenta = new List<DetalleVentaDTO>()
+        };
     private ProductoDTO _productoSeleccionado;
     private bool botonDesactivado = false;
 
-    private async Task<IEnumerable<ProductoDTO>> BuscarProducto(string valor){
-
+    private async Task<IEnumerable<ProductoDTO>> BuscarProducto(string valor)
+    {
         var response = await _productoServicio.Lista();
 
         if (response.status)
@@ -111,68 +114,99 @@
             if (string.IsNullOrEmpty(valor))
                 return new List<ProductoDTO>();
 
-            List<ProductoDTO> lista =(List<ProductoDTO>)response.value!;
+            List<ProductoDTO> lista = (List<ProductoDTO>)response.value!;
             return lista.FindAll(p => p.Nombre.Contains(valor, StringComparison.InvariantCultureIgnoreCase));
         }
         else
         {
-            return new List<ProductoDTO> ();
+            return new List<ProductoDTO>();
         }
     }
 
     private async Task AgregarProducto()
     {
-        if(_productoSeleccionado != null && _cantidad > 0)
-        {
-            var detalleVenta = new DetalleVentaDTO()
-            {
-                IdProducto = _productoSeleccionado.IdProducto,
-                DescripcionProducto = _productoSeleccionado.Nombre,
-                Cantidad = _cantidad,
-                Precio = _productoSeleccionado.Precio,
-                Total = _cantidad  * _productoSeleccionado.Precio
-            };
-            _venta.DetalleVenta!.Add(detalleVenta);
+        if (_productoSeleccionado == null || _cantidad <= 0)
+            return;
 
-            _productoSeleccionado = null;
-            _cantidad = 0;
+        // Validar que haya stock suficiente
+        if (_cantidad > _productoSeleccionado.Stock)
+        {
+            await Swal.FireAsync("Stock insuficiente", "No hay suficiente stock disponible para este producto.", "warning");
+            return;
         }
 
+        var detalleVenta = new DetalleVentaDTO()
+        {
+            IdProducto = _productoSeleccionado.IdProducto,
+            DescripcionProducto = _productoSeleccionado.Nombre,
+            Cantidad = _cantidad,
+            Precio = _productoSeleccionado.Precio,
+            Total = _cantidad * _productoSeleccionado.Precio
+        };
 
+        _venta.DetalleVenta!.Add(detalleVenta);
+
+        // Reducir temporalmente el stock del producto seleccionado
+        _productoSeleccionado.Stock -= _cantidad;
+
+        _productoSeleccionado = null;
+        _cantidad = 0;
     }
-
 
     private async Task EliminarProducto(int idproducto)
     {
         var productoEliminar = _venta.DetalleVenta.Find(p => p.IdProducto == idproducto);
-        _venta.DetalleVenta.Remove(productoEliminar);
+        if (productoEliminar != null)
+        {
+            _venta.DetalleVenta.Remove(productoEliminar);
+        }
     }
 
     private async Task RegistrarVenta()
     {
+        if (_venta.DetalleVenta.Count == 0)
+        {
+            await Swal.FireAsync("Aviso", "No hay productos en la venta. Agregue al menos un producto.", "warning");
+            return;
+        }
+
         botonDesactivado = true;
 
         _venta.Total = _venta.DetalleVenta!.Sum(p => p.Total);
         _venta.FechaRegistro = DateTime.Now;
 
+        // Actualizar el stock en la base de datos antes de registrar la venta
+        foreach (var detalle in _venta.DetalleVenta)
+        {
+            var responseStock = await _productoServicio.ActualizarStock(detalle.IdProducto, -(detalle.Cantidad ?? 0));
+
+            if (!responseStock.status)
+            {
+                await Swal.FireAsync("Error", $"No se pudo actualizar el stock del producto {detalle.DescripcionProducto}.", "error");
+                botonDesactivado = false;
+                return;
+            }
+        }
+
+        // Registrar la venta en la base de datos
         var response = await _ventaServicio.Registrar(_venta);
 
         if (response.status)
         {
             var _ventaCreada = (VentaDTO)response.value!;
             _venta = new VentaDTO()
-             {
-                 TipoPago = "Efectivo",
-                 DetalleVenta = new List<DetalleVentaDTO>()
-             };
+            {
+                TipoPago = "Efectivo",
+                DetalleVenta = new List<DetalleVentaDTO>()
+            };
 
-            await Swal.FireAsync("Venta Registrada", $"Numero de venta: {_ventaCreada.NumeroDocumento}", "success");
+            await Swal.FireAsync("Venta Registrada", $"Número de venta: {_ventaCreada.NumeroDocumento}", "success");
         }
         else
         {
             await Swal.FireAsync("Oops...", "No se pudo registrar!", "error");
         }
-        botonDesactivado = false;
 
+        botonDesactivado = false;
     }
 }
